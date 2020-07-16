@@ -1,0 +1,198 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Corona Cases</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <link rel="stylesheet" href="css/bootstrap.min.css" />
+  <link rel="stylesheet" href="css/Chart.min.css" />
+</head>
+<body>
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-6">
+      <div class="card">
+        <div class="card-body">
+          <canvas id="todayHolder" width="400" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card">
+        <div class="card-body">
+          <canvas id="barHolder" width="400" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <canvas id="chartHolder" width="400" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+<script src="js/jquery-3.5.1.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
+<script src="js/Chart.min.js"></script>
+<script src="js/palette.js"></script>
+<script>
+  var ziplist = ['95116',
+    '95127',
+    '95122',
+    '95111',
+    '95136',
+    '95008',
+    '95132',
+    '95124',
+    '95131',
+    '95118',
+    '95120',
+    '95014',
+    '94089',
+    '95135',
+    '95119'];
+
+  var chartcolors = [];
+
+  $(function() {
+    var charclr = palette('mpn65', ziplist.length);
+    $.each(charclr, function(i, clr) {
+      chartcolors.push('#' + clr);
+    });
+
+    extractData();
+  });
+
+  function extractData() {
+    $.ajax({
+      url: '/cases',
+      dataType: 'json',
+      success: function(data) {
+        createTodayBarChart(data);
+        createTodayChangeChart(data);
+        createLineChart(data);
+      }
+    });
+  }
+
+  function createTodayBarChart(data) {
+    var todayCases = data.todayCases;
+
+    var todayCaseArray = [];
+    $.each(ziplist, function(i, zip) {
+      todayCaseArray.push(todayCases[zip]);
+    });
+
+    new Chart($('#todayHolder'), {
+      type: 'bar',
+      data: {
+        labels: ziplist,
+        datasets: [
+          {
+            label: "Today Cases",
+            backgroundColor: chartcolors,
+            data: todayCaseArray
+          }
+        ]
+      },
+      options: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: 'Today Cases'
+        }
+      }
+    });
+  }
+
+  function createTodayChangeChart(data) {
+    var barziplist = [];
+    var barzipchange = [];
+
+    var rawchangedata = [];
+    $.each(data.lastChanges, function(z, changenum) {
+      rawchangedata.push({
+        zip: z,
+        num: changenum
+      });
+    });
+
+    rawchangedata.sort(function(a, b) {
+      return b.num - a.num;
+    });
+
+    $.each(rawchangedata, function(i, zobj) {
+      if (ziplist.indexOf(zobj.zip) <= 0) {
+        return;
+      }
+
+      barziplist.push(zobj.zip);
+      barzipchange.push(zobj.num);
+    });
+
+    var bardata = {
+      labels: barziplist,
+      datasets: [{
+        label: "Lastest Changes",
+        backgroundColor: chartcolors,
+        data: barzipchange
+      }]
+    };
+
+    new Chart($('#barHolder'), {
+      type: 'horizontalBar',
+      data: bardata,
+      options: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: 'Today Changes'
+        }
+      }
+    });
+  }
+
+  function createLineChart(data) {
+    var alldates = data.dates;
+
+    var zipdatasets = [];
+    var zipindex = 0;
+    $.each(data.zipcodeCases, function(zip, zipseries) {
+      if (ziplist.indexOf(zip) < 0) {
+        return;
+      }
+
+      var dataseries = {
+        label: zip,
+        data: zipseries,
+        fill: false,
+        borderColor: chartcolors[zipindex]
+      };
+      zipindex ++;
+      zipdatasets.push(dataseries);
+    });
+
+    new Chart($('#chartHolder'), {
+      type: 'line',
+      data: {
+        labels: alldates,
+        datasets: zipdatasets
+      },
+      options: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            fontColor: 'black'
+          }
+        }
+      }
+    });
+  }
+</script>
+</html>
